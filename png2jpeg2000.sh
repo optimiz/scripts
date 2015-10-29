@@ -9,21 +9,24 @@ if [ -z "$1" ]; then cmdline="*.png";
 #	else echo "Invalid command line."; exit 1;
 	else cmdline="$1"
 fi;
-
-for file in "$cmdline"; 
-do
-	if [ -e "$file" -a ! -e "${file[@]%.*}.jp2" ]; then
+SAVEIFS=$IFS
+IFS=$(echo -en "\n\b")
+for file in ${cmdline}; 
+do 
+	if [ -e "${file}" -a ! -e "${file[@]%.*}.jp2" ]; then
 		outfile="${file[@]%.*}.jp2";
-		echo "Convert $file to lossless JPEG2000.";
-		gm convert "$file" -compress lossless "$outfile";
-			if [[ $(stat -c%s "$file") -ge $(stat -c%s "$outfile") ]]; then
-				echo "Copy original metadata to $outfile.";
-				exiftool -overwrite_original -tagsfromfile "$file" "$outfile";
-				touch -r "$file" "$outfile";
-#				rm "$file";
+		echo "Convert ${file} to lossless JPEG2000.";
+		gm convert "${file}" -compress lossless "${outfile}";
+			if [[ $(stat -c%s "${file}") -ge $(stat -c%s "${outfile}") ]]; then
+				echo "Copy original metadata to ${outfile}.";
+				exiftool -overwrite_original -tagsfromfile "${file}" "${outfile}";
+				touch -r "${file}" "${outfile}";
+#				rm -v "$file";
 			else
 				echo "JPEG 2000 is larger than PNG, deleting."
-				rm -v "$outfile";
+				rm -v "${outfile}";
 			fi;
+	else echo "JPEG 2000 for ${file} already exists."
 	fi;
 done
+IFS=$SAVEIFS
