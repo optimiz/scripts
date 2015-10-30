@@ -1,7 +1,7 @@
 #! /bin/bash
-# FABIAN - Thursday, October 15 2015 - Automate PNG to lossless JPEG2000 conversion.
-# Note: This script is not whitespace safe and will fail quietly; use "find" to feed it.
-# Example: find . -type f -iname "2015*Horrible*png" -exec png2jpeg2000.sh {} \;
+# Thursday, October 15 2015 - Batch convert large PNG collection to lossless JPEG2000 for archival purposes.
+# Note: Use "find" to feed files recursively.
+# Example: find ~/ -type f -iname "2015*png" -exec png2jpeg2000.sh {} \;
 
 if [ -z "$1" ]; then cmdline="*.png";
 	elif [ -d "$1" ]; then cmdline="${1%/}/*.png";
@@ -9,24 +9,27 @@ if [ -z "$1" ]; then cmdline="*.png";
 #	else echo "Invalid command line."; exit 1;
 	else cmdline="$1"
 fi;
-SAVEIFS=$IFS
-IFS=$(echo -en "\n\b")
+
+IFS=$'\n\b'
+
 for file in ${cmdline}; 
 do 
-	if [ -e "${file}" -a ! -e "${file[@]%.*}.jp2" ]; then
-		outfile="${file[@]%.*}.jp2";
+	outfile="${file[@]%.*}.jp2";
+	if [ -e "${file}" -a ! -e "${outfile}" ]; then
 		echo "Convert ${file} to lossless JPEG2000.";
 		gm convert "${file}" -compress lossless "${outfile}";
 			if [[ $(stat -c%s "${file}") -ge $(stat -c%s "${outfile}") ]]; then
 				echo "Copy original metadata to ${outfile}.";
 				exiftool -overwrite_original -tagsfromfile "${file}" "${outfile}";
 				touch -r "${file}" "${outfile}";
-#				rm -v "$file";
+#				rm -v "${file}";
 			else
 				echo "JPEG 2000 is larger than PNG, deleting."
 				rm -v "${outfile}";
 			fi;
-	else echo "JPEG 2000 for ${file} already exists."
+	elif [ -e "${outfile}" ]; then 
+		echo "JPEG 2000 ${outfile} already exists."
 	fi;
 done
-IFS=$SAVEIFS
+
+IFS=$'\040\t\n'
