@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#! /usr/bin/bash
 #  This program is free software. It comes without any warranty, to
 #  the extent permitted by applicable law. You can redistribute it
 #  and/or modify it under the terms of the Do What The Fuck You Want
@@ -29,7 +29,7 @@ desktops=$(wmctrl -l | cut -c13 | sort -u | wc -l)
 toggle_window
 
 if [ "$desktops" -eq "1" ]; then
-	scrot $dest;
+	scrot $dest || gm import -window root $dest;
 	toggle_window;
 	exit 0;
 else
@@ -56,8 +56,7 @@ else
 	toggle_window
 
 # Tile as square/rectangular collage; use graphicsmagick instead of imagemagick; output as lossless JPEG 2000.
-	gm montage -geometry +0+0 -tile $(($desktops/2+$desktops%2))x$(($desktops/2+$desktops%2)) $tmpdir/$base-ws*.$ext -compress lossless $base.jp2
+	grid=$(($desktops/2+$desktops%2))
+	gm montage -geometry +0+0 -tile "$grid"x"$grid" $tmpdir/$base-ws*.$ext -compress lossless $base.jp2
 
-# Remove tmp files
-	rm -rf "$tmpdir"
 fi
