@@ -22,7 +22,7 @@ else
     ext=$(echo -n $dest | cut -d. -f2)
 fi
 
-terminals=$(wmctrl -lp |grep $(ps -u $(whoami) |grep mate-terminal |cut -d' ' -f1) | cut -c-10)
+terminals=$(wmctrl -lp | grep $(pgrep -u $(whoami) mate-terminal) | cut -c-10)
 # Only count workspaces with active windows, not empty desktops.
 desktops=$(wmctrl -l | cut -c13 | sort -u | wc -l)
 # Send terminal window(s) behind others.
@@ -48,7 +48,7 @@ else
 		# Take workspace screenshot
 		# (Note: Prefer scrot; import ignores some transparency)
 		tmpdest=$tmpdir/$base-ws$each.$ext
-		scrot $tmpdest || import -window root $tmpdest
+		scrot $tmpdest || gm import -window root $tmpdest
 	done
 
 # Return to original workspace and bring terminal window(s) back.
