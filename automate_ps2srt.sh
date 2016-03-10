@@ -1,7 +1,9 @@
 #! /bin/bash
 # Thursday, February 04 2016 - FE - Automate DVD private stream (PS) subtitle conversion to SRT.
 
-infile="$1"
+if [ -e "$1" ]; then infile="$1"
+	else echo "Specify PS file to convert on command line." && exit 1; 
+fi;
 tmpdir=$(mktemp -d) || exit 1
 trap 'rm -rf "$tmpdir"' EXIT INT TERM HUP
 cp "$infile" "$tmpdir"
@@ -31,5 +33,6 @@ srttool -s -i "$infile.srtx" -o "$infile.srt"
 # rm "$infile"*.{png,pgm,idx,xml,srtx,txt,sub}
 
 popd
-mv  "$tmpdir/$infile.srt" "${infile[@]%.*}.srt"
+# mv  "$tmpdir/$infile.srt" "${infile[@]%.*}.srt"
+awk 'BEGIN {RS=ORS=""; FS=OFS="\n"}{print $1,$2,$3; for (i=4;i<=NF;i++) printf " %s", $i; print "\n\n"}' "$tmpdir/$infile.srt" > "${infile[@]%.*}.srt"
 
