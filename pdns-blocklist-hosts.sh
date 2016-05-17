@@ -24,4 +24,4 @@ popd
 # NOTE: If "rec-control reload-zones" fails, restart instead -- the following error seems be a londstanding issue (since 2008)...
 # Error dealing with control socket request: Unable to send message over control channel '/var/run//lsock9CKhnj': No such file or directory
 
-rec-control reload-zones || systemctl restart pdns-recursor
+rec_control reload-zones || systemctl restart pdns-recursor
