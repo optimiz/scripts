@@ -21,7 +21,7 @@ while read each; do echo 127.0.0.1 $each ; done < bl.txt > /etc/pdns-recursor/bl
 
 popd
 
-# NOTE: If "rec-control reload-zones" fails, restart instead -- the following error seems be a londstanding issue (since 2008)...
+# If "reload-zones" fails, restart instead.  The following error seems be a londstanding issue (2008?), increasing timeout resolves.
 # Error dealing with control socket request: Unable to send message over control channel '/var/run//lsock9CKhnj': No such file or directory
 
-rec_control reload-zones || systemctl restart pdns-recursor
+rec_control --timeout=60 reload-zones || systemctl restart pdns-recursor
