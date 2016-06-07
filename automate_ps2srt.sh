@@ -16,7 +16,7 @@ subtitle2vobsub -p "$infile" -o "$basefile"
 # Convert PS to SRTX/PGM for srttool and graphicsmagick; NOTE: This tool outputs correct timing, but incorrect frames (doubles, missing, etc.)
 subtitle2pgm -P -i "$infile" -o "$basefile"
 # Convert IDX/SUB to XML/PNG; NOTE: This tool outputs correct frames; unfortunately, this tool doesn't support PS directly.
-java -jar /home/user/Download/BDSup2Sub.jar -o "$basefile.xml" "$basefile.idx"
+java -jar BDSup2Sub.jar -o "$basefile.xml" "$basefile.idx"
 
 # Prepare PNG frames for OCR -- tesseract (leptonica) doesn't properly detect characters without processing -- due to transparency??
 # NOTE: Graphicsmagick v1.3.20 doesn't support flatten option with mogrify option, convert to separate file instead.
