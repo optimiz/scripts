@@ -5,9 +5,12 @@
 if [ -e "$1" ]; then infile="$1"
 	else echo "Specify PS file to convert on command line." && exit 1;
 fi;
+
+function get_subtitles {
+
 tmpdir=$(mktemp -d) || exit 1
 basefile="${infile[@]%.*}";
-#trap 'rm -rf "$tmpdir"' EXIT INT TERM HUP
+trap 'rm -rf "$tmpdir"' EXIT INT TERM HUP
 cp "$infile" "$tmpdir"
 pushd "$tmpdir"
 
@@ -19,13 +22,13 @@ subtitle2pgm -P -i "$infile" -o "$basefile"
 java -jar BDSup2Sub.jar -o "$basefile.xml" "$basefile.idx"
 
 # Prepare PNG frames for OCR -- tesseract (leptonica) doesn't properly detect characters without processing -- due to transparency??
-# NOTE: Graphicsmagick v1.3.20 doesn't support flatten option with mogrify option, convert to separate file instead.
+# NOTE: Graphicsmagick v1.3.20 doesn't support flatten option as a mogrify option, must convert instead.
 
-# Replace "for loop" with moreutils-parallel (not GNU parallel); processes faster than "for loop".
+# Replace "for loop" with moreutils-parallel (not GNU parallel) for faster processing.
 # for pics in "$infile"*.png; do subs="$pics.pgm"; gm convert "$pics" -contrast -fuzz 10% -transparent grey -flatten "$subs"; tesseract "$subs" "$subs"; done
 
-parallel -i gm convert {} -contrast -fuzz 10% -transparent grey -flatten {}.pgm -- "$basefile"*.png
-parallel -i tesseract {} {} -- "$basefile"*.png.pgm 
+parallel -i gm convert {} -contrast -fuzz 10% -transparent grey -flatten {}.pgm -- "$basefile*.png"
+parallel -i tesseract {} {} -- "$basefile*.png.pgm"
 
 # Modify the SRTX to refer to the OCR output from the processed frames.
 sed -i "s/$basefile/$basefile\_/g;s/pgm/png.pgm/g" "$basefile.srtx"
@@ -41,7 +44,36 @@ popd
 awk 'BEGIN {RS=ORS=""; FS=OFS="\n"}{print $1,$2,$3; for (i=4;i<=NF;i++) printf " %s", $i; print "\n\n"}' "$tmpdir/$basefile.srt" > "$basefile.srt"
 
 # aspell -d en -c "${infile[@]%.*}.srt"
+}
 
-# Extract closed captioning EIA-608 and convert to SRT
-# ffmpeg -f lavfi -i "movie=$title.vob[out0+subcc]" -map s "${title[@]%.*}.cc"
-# awk 'BEGIN {RS=ORS=""; FS=OFS="\n"}{print $1,$2,$3; for (i=4;i<=NF;i++) printf " %s", $i; print "\n\n"}' "${title[@]%.*}.cc" |sed 's/^M//g' > "${infile[@]%.*}.srt"
+function get_captions {
+# Extract closed captioning (EIA-608) and convert to SRT.
+# Sadly, CC often doesn't include "forced subtitle" foreign language translations.
+# Also, the extracted time cues and duration are often very, very, VERY wrong!
+ffmpeg -f lavfi -i "movie=$title.vob[out0+subcc]" -map s -f srt "${title[@]%.*}.cc"
+# Remove 40-character standard word wrap; FIXME: overlapping/multiple speakers should not be unword wrapped.
+awk 'BEGIN {RS=ORS=""; FS=OFS="\n"}{print $1,$2,$3; for (i=4;i<=NF;i++) printf " %s", $i; print "\n\n"}' "${title[@]%.*}.cc" 
+# Remove CTRL-M's, descriptive captions enclosed in [] brackets, parenthesis and leading whitespace.
+sed -i 's/'"$(printf '\015')"'//g;s/\[[^][]*\]//g;s/([^()]*)//g;s/^ *//g' "${title[@]%.*}.cc"
+# Remove leading whitespace...
+# sed -i 's/^ $//g' "${title[@]%.*}.cc"
+# sed -i 's/^ *//g' "${title[@]%.*}.cc"
+}
+
+#get_subtitles
+case ${infile##*.} in
+		vob )
+			tcextract -i "$infile" -x ps1 -t vob -a 0x20 |pv > "${infile[@]%.*}.ps0";
+			get_subtitles
+		;; 
+		ps{0..9}|ps{a..d} )
+			get_subtitles
+		;;
+		mkv )
+			get_captions
+		;;
+		* )
+			echo 'Nothing to do.';
+		;;
+esac;
+
