@@ -8,10 +8,10 @@ SOX_OPTS="-V3 --buffer 10240000 silence 1 1 0.01% reverse silence 1 1 0.01% reve
 # FE - Sunday, August 21 2016 18:38 - For mono (Bluetooth speaker/headphones), insert "remix 1,2" or "channels 1" before norm directive
 # in sox options and remove "-m s" from lame options; alternatively, only replace "-m s" with "-a" in lame options instead.
 # [NOTE: Use sox over lame for mono conversions to make use of sox' internal 32bit conversion process.]
-# FE - Sunday, August 21 2016 23:16 - Output 24bit from sox to avoid dither after normalization -- lame accepts up to 32bit and transforms don't need dithered input.
+# FE - Sunday, August 21 2016 23:16 - Output 24bit from sox to avoid dither after normalizing -- lame accepts up to 32bit and FFTs don't need dithered input.
 ionice -c3 -p$$
 
-for file in *.{flac,wav,m4a,vob,aac,aif*};
+for file in *.{flac,wav,pcm,m4a,vob,aac,aif*};
 do
 	if [ -e "$file" -a ! -e "${file[@]%.*}.mp3" ]; then
 		song="${file[@]%.*}.mp3";
@@ -20,7 +20,7 @@ do
 			sox -t flac "$file" -b 24 -t wav - ${SOX_OPTS} \
 				| lame ${LAME_OPTS} - "$song";
 			;; 
-			wav )
+			wav|pcm )
 			sox -t wav "$file" -b 24 -t wav - ${SOX_OPTS} \
 				| lame ${LAME_OPTS} - "$song";
 			;;
