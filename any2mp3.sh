@@ -16,8 +16,7 @@ OUT_OPTS="-b 24 -t wav"
 
 ionice -c3 -p$$
 
-for file in *.{flac,wav,*pcm,m4a,vob,aac,aif*,raw,dts};
-do
+function conversion {
 	if [ -e "$file" -a ! -e "${file[@]%.*}.mp3" ]; then
 		song="${file[@]%.*}.mp3";
 		case "${file##*.}" in
@@ -46,17 +45,32 @@ do
 			raw|pcm|lpcm )
 			sox -t raw ${RAW_OPTS} -r 48000 "$file" ${OUT_OPTS} - ${SOX_OPTS} \
 				| lame ${LAME_OPTS} - "$song";
-				# flac -8 --channels=2 --sign=signed --bps=16 --sample-rate=48000 --endian=little "$file"
+				# play -t raw ${RAW_OPTS} -r 48000 "$file";
+				flac -8 --delete-input-file --channels=2 --sign=signed --bps=16 --sample-rate=48000 --endian=little "$file";
 			;;
-			dts )
-			ffmpeg -i "$file" -acodec pcm_s32le -ac 2 -f wav - \
+			dts|ac3 )
+			ffmpeg -i "$file" -af aresample=resampler=soxr:precision=28:cheby=1 -lfe_mix_level 1 \
+			-acodec pcm_s32le -ac 2 -af "pan=stereo|FL=FL+LFE|FR=FR+LFE" -f wav - \
 				| sox -t wav - -t wav - ${SOX_OPTS} \
 				| lame ${LAME_OPTS} - "$song";
-				# sox "$file" "split-track.wav" silence 1 1.0 0.1% 1 1.0 0.1% : newfile : restart
+				# sox "$file" "split-track.wav" silence 1 1.0 0.1% 1 1.0 0.1% : newfile : restart;
 			;;
 			* )
 			echo 'Nothing to do.';
 			;;
 		esac;
 	fi;
-done
+}
+
+if [ -e "$1" ]; 
+	then file="$1"; 
+		conversion; 
+	else
+		for file in *.{flac,wav,*pcm,m4a,vob,aac,aif*,raw,dts,ac3};
+			do
+				conversion;
+			done;
+fi;
+
+# Thursday, November 03 2016
+# ffmpeg -i "$file" -filter_complex "channelsplit=channel_layout=5.1[FL][FR][FC][LFE][BL][BR]" -acodec pcm_s32le -map "[FL]" front_left.wav -acodec pcm_s32le -map "[FR]" front_right.wav -acodec pcm_s32le -map "[FC]" front_center.wav -acodec pcm_s32le -map "[LFE]" lfe.wav -acodec pcm_s32le -map "[BL]" back_left.wav -acodec pcm_s32le -map "[BR]" back_right.wav
