@@ -4,7 +4,8 @@
 # FE - Saturday, March 21 2009 12:12 - Settings for 3.98 to mirror 3.90 settings from 2002...
 LAME_OPTS="-m s -q 0 -V 0 -b 32 -B 320 --lowpass -1 --highpass -1"
 # FE - Sunday, December 27 2009 14:29 - Autotrim silence from front and back...
-SOX_OPTS="-V3 --multi-threaded --buffer 10240000 silence 1 1 0.01% reverse silence 1 1 0.01% reverse norm -0.03"
+SOX_OPTS="--multi-threaded --buffer 10240000 silence 1 1 0.01% reverse silence 1 1 0.01% reverse norm -0.03"
+# --temp /media/ -V3
 # FE - Tuesday, October 04 2016 15:48 - Two channel, signed int, little-endian
 # [NOTE: tcextract auto-converts(?) big-endian DVD-PCM to native (host) endian.]
 RAW_OPTS="-c 2 -e signed-integer -L -b 16"
@@ -23,7 +24,7 @@ function conversion {
 			flac )
 			sox -t flac "$file" ${OUT_OPTS} - ${SOX_OPTS} \
 				| lame ${LAME_OPTS} - "$song";
-			;; 
+			;;
 			wav )
 			sox -t wav "$file" ${OUT_OPTS} - ${SOX_OPTS} \
 				| lame ${LAME_OPTS} - "$song";
@@ -31,7 +32,7 @@ function conversion {
 			aif|aiff )
 			sox -t aiff "$file" ${OUT_OPTS} - ${SOX_OPTS} \
 				| lame ${LAME_OPTS} - "$song";
-			;; 
+			;;
 			m4a|aac )
 			faad -q -w -d -f 2 "$file" \
 				| sox -t raw ${RAW_OPTS} -r 44100 - ${OUT_OPTS} - ${SOX_OPTS} \
@@ -41,6 +42,7 @@ function conversion {
 			tcextract -i "$file" -x pcm -a 0 \
 				| sox -t raw ${RAW_OPTS} -r 48000 - ${OUT_OPTS} - ${SOX_OPTS} \
 				| lame ${LAME_OPTS} - "$song";
+				# ffmpeg -i "$file" -sn -vn -compression_level 8 "${file[@]%.*}.flac"
 			;;
 			raw|pcm|lpcm )
 			sox -t raw ${RAW_OPTS} -r 48000 "$file" ${OUT_OPTS} - ${SOX_OPTS} \
@@ -49,8 +51,8 @@ function conversion {
 				flac -8 --delete-input-file --channels=2 --sign=signed --bps=16 --sample-rate=48000 --endian=little "$file";
 			;;
 			dts|ac3 )
-			ffmpeg -i "$file" -af aresample=resampler=soxr:precision=28:cheby=1 -lfe_mix_level 1 \
-			-acodec pcm_s32le -ac 2 -af "pan=stereo|FL=FL+LFE|FR=FR+LFE" -f wav - \
+			ffmpeg -i "$file" -af aresample=resampler=soxr:precision=28:cheby=1:dither_method=triangular_hp \
+				-lfe_mix_level 1 -acodec pcm_s32le -ac 2 -af "pan=stereo|FL=FL+LFE|FR=FR+LFE" -f wav - \
 				| sox -t wav - -t wav - ${SOX_OPTS} \
 				| lame ${LAME_OPTS} - "$song";
 				# sox "$file" "split-track.wav" silence 1 1.0 0.1% 1 1.0 0.1% : newfile : restart;
@@ -62,15 +64,21 @@ function conversion {
 	fi;
 }
 
-if [ -e "$1" ]; 
-	then file="$1"; 
-		conversion; 
+# Tuesday, March 07 2017 - Speed up processing using parallel...
+# parallel -j 2 -i nice -n 18 ionice -c2 time ~/Scripts/any2mp3.sh {} -- *.wav
+
+if [ -e "$1" ];
+	then file="$1";
+		conversion && rm -v "$file";
 	else
 		for file in *.{flac,wav,*pcm,m4a,vob,aac,aif*,raw,dts,ac3};
 			do
-				conversion;
+				conversion # && rm -v "$file";
 			done;
 fi;
 
 # Thursday, November 03 2016
 # ffmpeg -i "$file" -filter_complex "channelsplit=channel_layout=5.1[FL][FR][FC][LFE][BL][BR]" -acodec pcm_s32le -map "[FL]" front_left.wav -acodec pcm_s32le -map "[FR]" front_right.wav -acodec pcm_s32le -map "[FC]" front_center.wav -acodec pcm_s32le -map "[LFE]" lfe.wav -acodec pcm_s32le -map "[BL]" back_left.wav -acodec pcm_s32le -map "[BR]" back_right.wav
+# Tuesday, November 15 2016 - Mono output (for comedy concerts)
+# ffmpeg -i "$file" -af "pan=mono|FC=FC" -vn -acodec mp3
+
