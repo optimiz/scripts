@@ -24,12 +24,12 @@ popd
 
 # Tuesday, August 30 2016 - Add manual, intranet and adserver lists; combine into single input -- PDNS won't accept multiple "etc-hosts-file".
 # Need additional lists because Firefox Electrolysis (e10s) disables userContent.css see: https://bugzilla.mozilla.org/show_bug.cgi?id=1046166
-# curl -s --compressed 'https://pgl.yoyo.org/adservers/serverlist.php?showintro=0;hostformat=hosts' |grep 127.0.0.1 > /etc/pdns-recursor/yoyo.hosts
-# curl -s --compressed 'https://www.malwaredomainlist.com/hostslist/hosts.txt' |grep -v localhost |grep 127.0.0.1 > /etc/pdns-recursor/mdl.hosts
+curl -s --compressed 'https://pgl.yoyo.org/adservers/serverlist.php?showintro=0;hostformat=hosts' |grep 127.0.0.1 > /etc/pdns-recursor/yoyo.hosts
+curl -s --compressed 'https://www.malwaredomainlist.com/hostslist/hosts.txt' |grep -v localhost |grep 127.0.0.1 > /etc/pdns-recursor/mdl.hosts
 # Saturday, September 03 2016 - Normalize whitespace so sort can eliminate more duplicates.
 # sort -ifu /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,mdl}.hosts -o /etc/pdns-recursor/pdns.hosts
 egrep -hv '(127.0.0.1$|==)' /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,mdl}.hosts |tr [:upper:] [:lower:] |tr -s [:blank:] |sort -ifu -o /etc/pdns-recursor/pdns.hosts
 
-# If "reload-zones" fails, restart instead.  The following error seems be a londstanding issue (2008?), increasing timeout resolves.
+# If "reload-zones" fails, restart instead.  The following error seems be a longstanding issue (2008?), increasing timeout resolves.
 # Error dealing with control socket request: Unable to send message over control channel '/var/run//lsock9CKhnj': No such file or directory
 rec_control --timeout=60 reload-zones || systemctl restart pdns-recursor
