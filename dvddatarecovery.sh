@@ -1,6 +1,10 @@
 #! /bin/bash
 # FE - November 17, 2015 - Compendium of physical media data recovery techniques.
 # ffplay -fs -f lavfi smptehdbars=size=sxga
+# Thursday, March 23 2017 - TV snow, PAL or NTSC size at 12-15fps is more "natural-looking" when fullscreen.
+# ffplay -fs -f rawvideo -video_size pal -pixel_format gray16le -framerate 12 -i /dev/urandom
+# ffplay -f s16le -ar 22050 -i /dev/urandom
+# play -r 22050 -b 4 -c 1 -n synth whitenoise highpass 400 lowpass 4000 gain -24
 # Recover data, ignore bitrot, manufacturing defects, and intentional corruption.
 
 drive=/dev/sr0
@@ -15,22 +19,28 @@ dvdxchap -t $stream "$title.iso" > "$title.chapters"
 tccat -i "$title.iso" -T $stream,-1 |pv > "$title.vob"
 # Detect chapter transitions from track silence in combination with black frames, convert with $ date -d@"$timecode" -u +%H:%M:%S
 # ffmpeg -i "$title.vob" -sn -af silencedetect=-50dB:d=0.1 -vf blackdetect=d=0.1:pix_th=.1 -f null -
-mkvmerge -o "$title.mkv" -a 1 --default-language en "$title.vob" --chapters "$title.chapters" --title "$title"
+mkvmerge -o "$title.mkv" -a 1 --default-language en "$title.vob" --chapters "$title.chapters" --title "$title" --priority lowest
 
 # Optional foreign language clause...
 tcextract -i "$title.vob" -x ps1 -t vob -a 0x20 |pv > "$title.ps0"
-subtitle2vobsub -p "$title.ps0" -o "$title" 
+for count in {0..7}; do tcextract -i "$title.vob" -x ps1 -t vob -a 0x2$count |pv > "${title[@]%.*}.ps$count"; done
+subtitle2vobsub -p "$title.ps0" -o "$title"
 # Ignore generated size and palette; player will use default color and resize bitmaps via SAR/DAR.
 sed -i '/size/,/palette/s/^/#/' "$title.idx"
+# Sunday, March 26 2017 - Use ccextractor under wine: no byte order, linefeeds only and no GOP timing -- will use PTS instead (A NEW HOPE).
+wine ccextractorwin.exe -lf -nobom -nogt -o "$title.srt" "$title.vob"
+awk -i inplace 'BEGIN {RS=ORS=""; FS=OFS="\n"}{print $1,$2,$3; for (i=4;i<=NF;i++) printf " %s", $i; print "\n\n"}' "$title.srt"
+sed -i 's/'"$(printf '\015')"'//g;s/\[[^][]*\]//g;s/([^()]*)//g;s/<[^>]*>//g;s/^[[:space:]]*//g;s/[[:space:]]*$//' "$title.srt"
 mkvmerge -o "$title.mkv" -a 1 --default-language zh "$title.vob" --forced-track 0:1 --language 0:en "$title.idx" --chapters "$title.chapters" --title "$title"
 
 # Optional conversion to h264...
-ffmpeg -i "$title.vob" -sn -an -vcodec h264 -tune "$type" "$title.h264"
+ffmpeg -hwaccel vdpau -i "$title.vob" -sn -an -deinterlace -vf crop=704:336:8:74 -vcodec h264 -tune "$type" "$title.h264"
 mkvmerge -o "$title.mkv" --default-language ja "$title.h264" -D -a 2 "$title.vob" --language 0:en "$title.idx" --chapters "$title.chapters" --title "$title"
 
-# When mpeg2 stream has (often intentional) GOP issues at onset, mkvmerge < v7.9 will hang/crash, use "ulimit -v 512000" to prevent total system lock.
+# When mpeg2 stream has (often intentional) GOP issues at onset, mkvmerge < v7.9 will hang/crash, try "ulimit -v 512000" to prevent total system lock.
 # Alternatively, convert video to h.264, extract audio separately. Or, discover duration using silence/black detect and use "-ss" to skip (WALL_E).
 ffmpeg -i "$title.vob" -t 1:00 -sn -af silencedetect=-50dB:d=0.1 -vf blackdetect=d=0.1:pix_th=.1 -f null -
+ffprobe -show_frames -select_streams v:0 "$title.vob"
 ffmpeg -i "$title.vob" -sn -vn -acodec copy "$title.ac3"
 ffmpeg -analyzeduration 2147483647 -probesize 2147483647 -ss 00:00:01.604 -i "$title.vob" -map 0 -codec copy -f vob "remux.vob"
 # When ac3 stream is not detected correctly (0 channels), increase analyze duration and probesize, remux to separate stream as necessary...
@@ -43,9 +53,16 @@ ffmpeg -analyzeduration 2147483647 -probesize 2147483647 -ss 2 -i "$title.vob" -
 ffmpeg -i "$title.vob" -sn -vn -map a:$stream -acodec copy "$title.ac3"
 tccat -i $drive -T $stream,-1 |tcextract -x ac3 -t vob |pv > "$title.ac3"
 mkvmerge -o "$title.mkv" --default-language en "$title.h264" "$title.ac3" --chapters "$title.chapters" --title "$title"
+for title in *.vob; do tcextract -i "$title" -x pcm -t vob -a 0 |pv > "${title[@]%.*}.pcm"; done
 
 # Set a non-destructive crop mask in existing MKV...
 mkvpropedit "$title.mkv" -v --edit track:v1 -s pixel-crop-top=9 -s pixel-crop-bottom=9
+mkvpropedit "$title.mkv" --set title="$title"
+# Add cover art to existing MKV; note: certain players (mpv) display cover art as an alternate video stream.
+gm convert "$title.png" -fuzz 10% -trim +repage -enhance -interlace line cover.jpg
+mkvpropedit -v "$title.mkv" --add-attachment cover.jpg
+# Change default (usually) audio track...
+mkvpropedit "$title.mkv" --edit track:2 --set flag-default=0 --edit track:4 --set flag-default=1
 
 # Crop must be evenly divisible by 16, if not and/or is scaled to be, it will produce a terrible-looking encode.  Overcrop instead.
 # The following method produces terrible-looking encodes: lr=4 # Pixels from each side, left and right. ;tb=10 # Pixels from both top and bottom.
@@ -92,3 +109,14 @@ ddrescue -m "$title.map" -n -b 2048 -c 1 -r 1 -d $drive "$title.iso" "$title-2nd
 # For discs with >1GB unfinished area (NYSM,RED2,KICKASS2,CITW) outside the TOC, exit ddrescue; only bad streams are in the unifished area.
 # These discs often have a *** Zero check failed in src/ifo_read.c vmgi_mat->zero_6 error message.
 # However, discs with ~1GB error area (YOURENEXT,BATTLELA) will segfault vlc and/or play incorrect title unless unread area is reduced to ~256k.
+
+# Wednesday, March 22 2017 - Forcibly drop all interlaced frames, crop, then encode to progressive 24fps (CHARLOTTESWEB [1973],AKIRA) with high-quality denoise.
+# This method mimics "digitally remastered" material; however, gamma, contrast, brightness and saturation tests were /not/ acceptable to test viewers.
+# ...perhaps they were too used to the CRT's dark gamma on HD displays? Even when color-matched to actual animation cells...still unaccepted.
+nice -n 18 ionice -c2 ffmpeg -i "$title.vob" -vf fieldmatch,mpdecimate,crop=704:480:10:0,hqdn3d -r 24000/1001 -tune "$type" "$title.h264"
+
+# Saturday, March 25 2017 - Downmix DTS to stereo Dolby Digital Plus+
+ffmpeg -i "$title.vob" -af aresample=matrix_encoding=dplii:ocl=stereo -c:a:0 ac3 test.mka
+
+# Sunday, April 30 2017 - Initial convert music VOBs with PCM audio to holding format for later h264 conversion...
+ffmpeg -fflags +genpts -i "$title.vob" -sn -vcodec copy -acodec flac -compression_level 8 "$title.mkv"
