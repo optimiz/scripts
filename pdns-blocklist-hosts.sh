@@ -9,16 +9,19 @@ trap 'rm -rf "$tmpdir"' EXIT INT TERM HUP
 pushd "$tmpdir"
 
 # Retrieve lists from Mozilla Focus (disconnect.me); https://disconnect.me/trackerprotection/blocked; https://disconnect.me/trackerprotection/unblocked
+# Friday, February 03 2017 - Test new list from https://www.malwaredomains.com/
 wget -qN --header="Accept-Encoding: gzip" \
 https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt \
 https://s3.amazonaws.com/lists.disconnect.me/simple_malvertising.txt \
-https://s3.amazonaws.com/lists.disconnect.me/simple_malware.txt || exit 1
+https://s3.amazonaws.com/lists.disconnect.me/simple_malware.txt \
+https://mirror1.malwaredomains.com/files/justdomains || exit 1
 
 # Skip headers, remove duplicates and blank lines...
-tail -n +5 simple*.txt |sort -ifu |grep -v ^$ > disconnect.txt
+tail -n +5 simple*.txt |sort -ifu |grep -v ^$ > disconnectme
 
 # Create hosts file from blocklist...
-while read each; do echo 127.0.0.1 $each ; done < disconnect.txt > /etc/pdns-recursor/disconnect.hosts
+if [ -e disconnectme ]; then while read each; do echo 127.0.0.1 $each; done < disconnectme > /etc/pdns-recursor/disconnect.hosts; fi
+if [ -e justdomains ]; then while read each; do echo 127.0.0.1 $each; done < justdomains > /etc/pdns-recursor/md.hosts; fi
 
 popd
 
@@ -28,7 +31,7 @@ curl -s --compressed 'https://pgl.yoyo.org/adservers/serverlist.php?showintro=0;
 curl -s --compressed 'https://www.malwaredomainlist.com/hostslist/hosts.txt' |grep -v localhost |grep 127.0.0.1 > /etc/pdns-recursor/mdl.hosts
 # Saturday, September 03 2016 - Normalize whitespace so sort can eliminate more duplicates.
 # sort -ifu /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,mdl}.hosts -o /etc/pdns-recursor/pdns.hosts
-egrep -hv '(127.0.0.1$|==)' /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,mdl}.hosts |tr [:upper:] [:lower:] |tr -s [:blank:] |sort -ifu -o /etc/pdns-recursor/pdns.hosts
+egrep -hv '(127.0.0.1$|==)' /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,mdl,md}.hosts |tr [:upper:] [:lower:] |tr -s [:blank:] |sort -ifu -o /etc/pdns-recursor/pdns.hosts
 
 # If "reload-zones" fails, restart instead.  The following error seems be a longstanding issue (2008?), increasing timeout resolves.
 # Error dealing with control socket request: Unable to send message over control channel '/var/run//lsock9CKhnj': No such file or directory
