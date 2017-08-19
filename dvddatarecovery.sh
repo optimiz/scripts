@@ -1,6 +1,7 @@
 #! /bin/bash
 # FE - November 17, 2015 - Compendium of physical media data recovery techniques.
 # ffplay -fs -f lavfi smptehdbars=size=sxga
+# ffmpeg -f lavfi -i smptehdbars=size=vga -t 1 -r 1 tv_bars.png
 # Thursday, March 23 2017 - TV snow, PAL or NTSC size at 12-15fps is more "natural-looking" when fullscreen.
 # ffplay -fs -f rawvideo -video_size pal -pixel_format gray16le -framerate 12 -i /dev/urandom
 # ffplay -f s16le -ar 22050 -i /dev/urandom
@@ -17,9 +18,14 @@ type=animation
 
 dvdxchap -t $stream "$title.iso" > "$title.chapters"
 tccat -i "$title.iso" -T $stream,-1 |pv > "$title.vob"
+
+# stream=1; drive=/dev/sr0; title=DVD; dvdxchap -t $stream $drive > "$title.chapters"; tccat -i $drive -T $stream,-1 |pv > "$title.vob";
+# cp /run/media/user/*/JACKET_P/J00___5L.MP2 $title.mp2 && ffmpeg -hide_banner -loglevel panic -i $title.mp2 $title.png;
+# gmic -i $title.png -resize 720,540,1,3,6 -normalize 0,255 -o jpg:{b}.jpg,89 && jpegoptim -p $title.jpg; rm $title.png;
+
 # Detect chapter transitions from track silence in combination with black frames, convert with $ date -d@"$timecode" -u +%H:%M:%S
 # ffmpeg -i "$title.vob" -sn -af silencedetect=-50dB:d=0.1 -vf blackdetect=d=0.1:pix_th=.1 -f null -
-mkvmerge -o "$title.mkv" -a 1 --default-language en "$title.vob" --chapters "$title.chapters" --title "$title" --priority lowest
+mkvmerge -o "$title.mkv" -a 1 --default-language en "$title.vob" --chapters "$title.chapters" --title "$title" --priority lowest --attach-file $title.jpg
 
 # Optional foreign language clause...
 tcextract -i "$title.vob" -x ps1 -t vob -a 0x20 |pv > "$title.ps0"
@@ -92,7 +98,7 @@ for title in LOTR3 LOTR2 LOTR1 ;do ionice -c3 mkvmerge -o "$title.mkv" --default
 # for title in *.mkv; do ionice -c3 ffmpeg -i "$title" -sn -an -vcodec h264 -tune "$type" "${title[@]%.*}.h264"; done
 # for title in *.vob; do ionice -c3 mkvmerge -o "${title[@]%.*}.mkv" "${title[@]%.*}.h264" -D -a 1 --default-language en "${title[@]%.*}.vob"; done
 
-# For excessive disc errors, reduce recovery size to one write per read, one retry per error.
+# For excessive disc errors, reduce recovery size to one write per read, one retry per error. (MoS, MIB3)
 # ddrescue -n -b 2048 -c 1 -r 1 -d $drive "$title.iso" "$title.map"
 #
 # Example output (Man of Steel) with original recovery options...
@@ -110,13 +116,18 @@ ddrescue -m "$title.map" -n -b 2048 -c 1 -r 1 -d $drive "$title.iso" "$title-2nd
 # These discs often have a *** Zero check failed in src/ifo_read.c vmgi_mat->zero_6 error message.
 # However, discs with ~1GB error area (YOURENEXT,BATTLELA) will segfault vlc and/or play incorrect title unless unread area is reduced to ~256k.
 
+# Monday, July 24 2017 - For "ifoOpenVTSI failed" along with multiple, repeating "Invalid IFO for title" errors (RESIDENTEVIL6), vlc --dvdnav-menu will fail; instead, extract one chapter each to find correct stream, then extract as normal.
+for stream in {01..99}; do echo "Extracting: $stream"; tccat -i "$drive$title.iso" -T $stream,1 |pv > "$title$stream.vob"; done
+
+
 # Wednesday, March 22 2017 - Forcibly drop all interlaced frames, crop, then encode to progressive 24fps (CHARLOTTESWEB [1973],AKIRA) with high-quality denoise.
-# This method mimics "digitally remastered" material; however, gamma, contrast, brightness and saturation tests were /not/ acceptable to test viewers.
+# Friday, June 16 2017 - Add square pixel scale for DVD; use to detect crop value: ffplay -vf 'scale=iw:trunc(iw/dar/2)*2,cropdetect' "$title.vob"
+# This method mimics "digitally remastered" material; however, gamma, contrast, brightness and saturation changes were /not/ acceptable to test viewers.
 # ...perhaps they were too used to the CRT's dark gamma on HD displays? Even when color-matched to actual animation cells...still unaccepted.
-nice -n 18 ionice -c2 ffmpeg -i "$title.vob" -vf fieldmatch,mpdecimate,crop=704:480:10:0,hqdn3d -r 24000/1001 -tune "$type" "$title.h264"
+nice -n 18 ionice -c2 ffmpeg -i "$title.vob" -vf 'fieldmatch,mpdecimate,scale=iw:trunc(iw/dar/2)*2,crop=704:528:8:6,hqdn3d' -r 24000/1001 -tune "$type" "$title.h264"
 
 # Saturday, March 25 2017 - Downmix DTS to stereo Dolby Digital Plus+
-ffmpeg -i "$title.vob" -af aresample=matrix_encoding=dplii:ocl=stereo -c:a:0 ac3 test.mka
+ffmpeg -i "$title.vob" -af 'aresample=matrix_encoding=dplii:ocl=stereo' -c:a:0 ac3 "$title.mka"
 
 # Sunday, April 30 2017 - Initial convert music VOBs with PCM audio to holding format for later h264 conversion...
 ffmpeg -fflags +genpts -i "$title.vob" -sn -vcodec copy -acodec flac -compression_level 8 "$title.mkv"
