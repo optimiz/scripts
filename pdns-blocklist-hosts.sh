@@ -21,8 +21,9 @@ tail -n +5 simple*.txt |sort -ifu |grep -v ^$ > 'disconnectme'
 
 # Need additional lists because Firefox Electrolysis (e10s) disables userContent.css see: https://bugzilla.mozilla.org/show_bug.cgi?id=1046166
 # Thursday, November 09 2017 - Add user agent string to resolve mdl timeouts.
-curl -sA 'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:50.0) Gecko/20100101 Firefox/50.0' --compressed 'https://pgl.yoyo.org/adservers/serverlist.php?showintro=0;hostformat=hosts' -o 'yoyo'
-curl -sA 'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:50.0) Gecko/20100101 Firefox/50.0' --compressed 'https://www.malwaredomainlist.com/hostslist/hosts.txt' -o 'malwaredomainlist'
+agent='Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:50.0) Gecko/20100101 Firefox/50.0'
+curl -sA "$agent" --compressed 'https://pgl.yoyo.org/adservers/serverlist.php?showintro=0;hostformat=hosts' -o 'yoyo'
+curl -sA "$agent" --compressed 'https://www.malwaredomainlist.com/hostslist/hosts.txt' -o 'malwaredomainlist'
 
 # Create hosts file from blocklist...
 if [ -s 'disconnectme' ]; then while read each; do echo 127.0.0.1 $each; done < 'disconnectme' > '/etc/pdns-recursor/disconnect.hosts'; fi
