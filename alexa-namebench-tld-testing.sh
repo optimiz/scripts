@@ -19,10 +19,10 @@ curl -O --compressed 'http://downloads.majestic.com/majestic_million.csv'
 # Extract top 2000 sites by TLD...
 for tld in com org net edu gov ; do zgrep -m 2000 -e ".$tld$" "$input" |cut -d',' -f2 > "tld$tld.txt" ; done
 # Prime cache using the separate TLD extracts...
-parallel -i dig @192.168.4.3 +multiline +keepopen +notcp -f {} -- ../../tld*.txt
+parallel -i dig @localhost +multiline +keepopen +notcp -f {} -- tld*.txt
 
 # Reformat TLD extract(s) for namebench (needs A record signifier and domain terminator)
-while read each; do echo "A $each." ; done < ../../tldedu.txt > 'data/fe-tld-by-edu.txt'
+while read each; do echo "A $each." ; done < tldedu.txt > 'data/fe-tld-by-edu.txt'
 
 # Test...
 for tld in com org net edu ; do ./namebench.py -x -i "data/fe-tld-by-$tld.txt" -S ; done
