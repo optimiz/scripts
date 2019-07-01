@@ -42,7 +42,7 @@ foreach ($line in $students) {
         $newUserParams = @{
             Name        = $line.first_name +' '+ $line.last_name
             DisplayName = $line.first_name +' '+ $line.last_name
-            Path        = $("OU=$($line.class),OU=Students,OU=CBHS Classrooms,DC=example,DC=org")
+            Path        = $("OU=$($line.class),OU=Students,OU=Classrooms,DC=example,DC=org")
             Enabled     = $true
             GivenName   = $line.first_name
             Surname     = $line.last_name
