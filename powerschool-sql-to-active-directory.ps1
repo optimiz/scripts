@@ -23,11 +23,13 @@ $ExportPath = "$($env:USERPROFILE)\Desktop\$now-export.csv"
 Open-OracleConnection -ServiceName $dbname -DataSource $dbsource -Port $dbport -UserName $dbuser -Password $dbpswd -WarningAction SilentlyContinue
 
 # 2019-07-01 - FE - External non-resident summer school students are class of 0.
+# 2019-07-17 - FE - Automate classof selection using sysdate comparison.
 
 $students=Invoke-SqlQuery -query "
 SELECT first_name, last_name, TRIM(CONCAT(dbms_random.STRING('a',3),dbms_random.STRING('x',5))) PASSWORD, student_web_id, psguid, CASE classof WHEN 0 THEN 9999 ELSE classof END CLASS 
 FROM students 
-WHERE (classof >= '2020' OR (classof = '0' AND student_number >= 100000)) AND student_web_id IS NOT NULL AND psguid IS NOT NULL AND exitcode IS NULL ORDER BY classof, last_name, first_name"
+WHERE (classof >= CASE WHEN EXTRACT(MONTH FROM sysdate) >= 7 THEN EXTRACT(YEAR FROM sysdate) + 1 ELSE EXTRACT(YEAR FROM sysdate) END OR (classof = '0' AND student_number >= 100000))
+AND student_web_id IS NOT NULL AND psguid IS NOT NULL AND exitcode IS NULL AND enroll_status = 0 ORDER BY classof, last_name, first_name"
 
 # 2019-06-21 - FE - Original array splatting method from https://4sysops.com/archives/sync-active-directory-users-with-a-sql-database/
 
