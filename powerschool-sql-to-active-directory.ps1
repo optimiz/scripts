@@ -2,7 +2,7 @@
 #
 # 2019-07-01 - FE - Important prerequisite!  Run "ID/Password Assignment" process in PowerSchool first!
 #
-# Example: Switch to 'district office', search for "/classof=2023", goto "Group Function" > 'Functions' > 'ID/Password Assignment'.
+# Example: Switch to 'district office', search for "/classof>=2020;Student_web_ID=", goto "Group Function" > 'Functions' > 'ID/Password Assignment'.
 # Be sure "Don't overwrite any existing ID's or passwords" is selected!
 
 Import-Module SimplySql
