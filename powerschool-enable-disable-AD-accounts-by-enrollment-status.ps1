@@ -13,8 +13,8 @@ $dbsource = 'Powerschool'
 
 Open-OracleConnection -ServiceName $dbname -DataSource $dbsource -Port $dbport -UserName $dbuser -Password $dbpswd -WarningAction SilentlyContinue
 
-$exitedstudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE exitdate BETWEEN '01-JAN-19' AND sysdate AND exitcode IS NOT NULL"
-$activestudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE enroll_status <= 0 AND entrydate >= sysdate AND student_web_id IS NOT NULL AND psguid IS NOT NULL"
+$exitedstudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE exitdate BETWEEN sysdate - 90 AND sysdate AND exitcode IS NOT NULL AND schoolid in (1234567,0) AND student_web_id IS NOT NULL AND psguid IS NOT NULL"
+$activestudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE enroll_status <= 0 AND entrydate >= sysdate AND schoolid in (1234567,0) AND student_web_id IS NOT NULL AND psguid IS NOT NULL"
 
 # 2019-06-14 - JB - Add enabled check and pipe to disable command.
 
