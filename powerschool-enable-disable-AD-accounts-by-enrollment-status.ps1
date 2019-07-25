@@ -29,4 +29,4 @@ foreach ($user in $activestudents)
 }
 
 # 2019-06-21 - FE Actually delete inactive AD student accounts:
-# Get-ADUser -Filter * -SearchBase "OU=Students,OU=CBHS Classrooms,DC=cbhs-sacramento,DC=org" -Property Enabled | Where-Object {$_.Enabled -like “false”} | Remove-ADUser -WhatIf #| FT Name, Enabled -Autosize
+# Get-ADUser -Filter * -SearchBase "OU=Students,OU=Classrooms,DC=example,DC=org" -Property Enabled | Where-Object {$_.Enabled -like “false”} | Remove-ADUser -WhatIf #| FT Name, Enabled -Autosize
