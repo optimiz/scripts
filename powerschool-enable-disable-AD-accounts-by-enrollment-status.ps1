@@ -21,22 +21,27 @@ $activestudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHER
 $ErrorActionPreference = "SilentlyContinue"
 
 # 2019-07-26 - FE - Rewrite foreach so that notification of changes can be emailed.
+# 2019-07-29 - FE - Add conditionals to cmdlet processes; especially, do not send notification email if no changes were performed.
+
 $temp1 = $exitedstudents | ForEach-Object { Get-ADUser -Identity $($_.STUDENT_WEB_ID) | ? { $_.ENABLED -eq "True" } }
-$temp1 | Disable-ADAccount #-WhatIf
+if ($temp1) {$temp1 | Disable-ADAccount } else {'No accounts to disable.'}
 $temp2 = $activestudents | ForEach-Object { Get-ADUser -Identity $($_.STUDENT_WEB_ID) | ? { $_.ENABLED -ne "True" } }
-$temp2 | Enable-ADAccount #-WhatIf
+if ($temp2) {$temp2 | Enable-ADAccount } else {'No accounts to reactivate.'}
 
 # 2019-07-26 - FE - Combine results into variable then email notification.
-$body = $temp1 |Select-Object enabled,samaccountname,name
-$body += $temp2 |Select-Object enabled,samaccountname,name
+# 2019-07-31 - FE - Reselect student account to show status AFTER change performed, not from before.
+$body = $temp1 |Get-ADUser |Select-Object enabled,samaccountname,name
+$body += $temp2 |Get-ADUser |Select-Object enabled,samaccountname,name
 
-$email = @{
-    From = "cronjob@example.org"
-    To = "it@example.org"
-    Subject = "Student Accounts Enabled/Disabled"
-    SMTPServer = "mx.example.org"
-}
+if ($body) {
+    $email = @{
+        From = "cronjob@example.org"
+        To = "it@example.org"
+        Subject = "Student Accounts Enabled/Disabled"
+        SMTPServer = "mx.example.org"
+    }
+    Send-MailMessage @email -Body ($body | Out-String)
+} else {return}
 
-Send-MailMessage @email -Body ($body | Out-String)
 # 2019-06-21 - FE Actually delete inactive AD student accounts:
 # Get-ADUser -Filter * -SearchBase "OU=Students,OU=Classrooms,DC=example,DC=org" -Property Enabled | Where-Object {$_.Enabled -like “false”} | Remove-ADUser -WhatIf #| FT Name, Enabled -Autosize
