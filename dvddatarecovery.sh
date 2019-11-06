@@ -19,6 +19,8 @@ type=animation
 dvdxchap -t $stream "$title.iso" > "$title.chapters"
 tccat -i "$title.iso" -T $stream,-1 |pv > "$title.vob"
 
+exit; # Wednesday, November 06 2019 - Skip the rest of this script.
+
 # Tuesday, December 26 2017 - Only need ISO for errors like "[dvd_reader.c] critical: Read failed for 319 blocks at xxxx"; else, just grab VOB…
 # stream=1; drive=/dev/sr0; title=DVD; dvdxchap -t $stream $drive > "$title.chapters"; tccat -i $drive -T $stream,-1 |pv > "$title.vob"; eject $drive;
 # cp /run/media/user/*/JACKET_P/J00___5L.MP2 $title.mp2 && ffmpeg -hide_banner -loglevel panic -i $title.mp2 $title.png;
