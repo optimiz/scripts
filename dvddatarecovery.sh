@@ -12,6 +12,8 @@ drive=/dev/sr0
 title=$(lsdvd $drive |grep 'Disc' |awk '{print $3}')
 echo $title
 ddrescue -n -b 2048 -d $drive "$title.iso" "$title.map"
+# Monday, March 23 2020 - safecopy outputs an exact MD5 match to ddrescue; can be faster with less drive thrashing.
+# safecopy --stage1 $drive "$title.iso"; safecopy --stage2 $drive "$title.iso"; safecopy --stage3 $drive "$title.iso";
 eject $drive
 stream=1
 type=animation
@@ -136,3 +138,18 @@ ffmpeg -i "$title.vob" -af 'aresample=matrix_encoding=dplii:ocl=stereo' -c:a:0 a
 
 # Sunday, April 30 2017 - Initial convert music VOBs with PCM audio to holding format for later h264 conversion…
 ffmpeg -fflags +genpts -i "$title.vob" -sn -vcodec copy -acodec flac -compression_level 8 "$title.mkv"
+
+# Monday, November 25 2019 - For IFO ToC mismatches (MEET THE ROBINSONS), do ISO extract, then vobcopy the main title, then extract by chapter from the vobcopy extract, then pull black frame forward (ffmpeg -map 0 -ss 2 works) on chapter 1, then cat vobs of chapter 2 to the end.  Convert both first chapter and combined chapters to separate MKVs, then combine to MKV as normal.
+vobcopy $title.iso
+stream=1; for chapter in {1..21}; do echo "Extracting: $chapter"; tccat -i "../vobcopyextractfolder/" -T $stream,$chapter |pv > "$title$chapter.vob"; done
+ffmpeg -analyzeduration 2147483647 -probesize 2147483647 -ss 2 -i "$title"01.vob -map 0 -codec copy -f vob "begin.vob"
+cat $title{02..21}.vob > "finish.vob"
+
+ffmpeg -analyzeduration 2147483647 -probesize 2147483647 -ss 2 -i "$title".vob -map 0 -codec copy -f mpegts "remux.mpg"
+
+# Monday, March 23 2020 - When tccat/vobcopy and all others fail, use safecopy to create ISO, 7z to extract VOBs from ISO, then smartripper in movie mode set to decrypt at vob-id and split at each chapter.  (Method discovered for use on an encient "BMG home video" concert released in 2002.)
+safecopy --stage1 $drive "$title.iso"; safecopy --stage2 $drive "$title.iso"; safecopy --stage3 $drive "$title.iso";
+7z x "$title.iso"
+wine 'SmartRipper.exe'
+rename 'vts_01_' 'vts_01_0' "vts_01_?.vob"
+cat "vts_01_??.vob" > "$title.vob"
