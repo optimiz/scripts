@@ -13,7 +13,7 @@ $dbpswd = '***********'
 $dbuser = 'PSNavigator'
 $dbport = 1521
 $dbname = 'PSPRODDB'
-$dbsource = 'Powerschool'
+$dbsource = 'powerschool.example.edu'
 
 $LogonWorkstations = 'class,instant,adfs,azure'
 $memberOf = 'CN=All Students,OU=Security,DC=example,DC=org' 
@@ -27,8 +27,7 @@ Open-OracleConnection -ServiceName $dbname -DataSource $dbsource -Port $dbport -
 
 $students=Invoke-SqlQuery -query "
 SELECT first_name, last_name, TRIM(CONCAT(dbms_random.STRING('a',3),dbms_random.STRING('x',5))) PASSWORD, student_web_id, psguid,
-nvl(sched_yearofgraduation, CASE grade_level WHEN 9 THEN EXTRACT(YEAR FROM entrydate) + 4 WHEN 10 THEN EXTRACT(YEAR FROM entrydate) + 3 WHEN 11 THEN EXTRACT(YEAR FROM entrydate) + 2 WHEN 12 THEN EXTRACT(YEAR FROM entrydate) + 1 ELSE 
-(CASE WHEN EXTRACT(MONTH FROM sysdate) >= 7 THEN EXTRACT(YEAR FROM sysdate) + 3 ELSE EXTRACT(YEAR FROM sysdate) + 4 END) END) CLASS
+EXTRACT(YEAR FROM entrydate) - (CASE WHEN grade_level < 9 THEN 9 ELSE grade_level END - 9) + 4 CLASS
 FROM students
 WHERE exitdate >= sysdate AND student_web_id IS NOT NULL AND psguid IS NOT NULL AND exitcode IS NULL AND enroll_status = 0 ORDER BY last_name, first_name"
 
