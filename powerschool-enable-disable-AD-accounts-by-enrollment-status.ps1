@@ -1,5 +1,16 @@
 # 2019-06-13 - FE - Disable AD accounts for students who have exited (includes all types; e.g., transfers, moves, fails, graduates, etc.)
 # 2019-07-24 - FE - Enable AD accounts for previously-disabled students who re-enroll.
+# 2020-06-09 - FE - Modify script to run against SaaS hosted PowerSchool through F5 BigIP Edge Client VPN connection.
+# NOTE: For F5 BigIP Edge VPN CLI client on Windows OS, convert user and password to HEX values; for example: <<<'datahere' xxd -ps
+
+# 2020-06-19 - FE - Add task kill for problematic F5 VPN.
+Stop-Process -Name "f5fpclient" -Force
+Start-Sleep -Seconds 2
+
+# 2020-06-09 - FE - Connect to VPN and capture session ID for later closure; 10 second wait is for connection to stabilize.
+$vpnout = &"C:\Program Files (x86)\F5 VPN\f5fpc.exe" --% -start /h vpn.example.com /uh 000000000000000000000 /ph 0000000000000000000000
+Start-Sleep -Seconds 10
+$vpnsid = $vpnout |Where-Object {$_ -match 'session id:'} |ConvertFrom-String |Select -ExpandProperty p3 
 
 Import-Module SimplySql
 
@@ -13,8 +24,9 @@ $dbsource = 'Powerschool'
 
 Open-OracleConnection -ServiceName $dbname -DataSource $dbsource -Port $dbport -UserName $dbuser -Password $dbpswd -WarningAction SilentlyContinue
 
-$exitedstudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE exitdate BETWEEN sysdate - 90 AND sysdate AND exitcode IS NOT NULL AND schoolid in (1234567,0) AND student_web_id IS NOT NULL AND psguid IS NOT NULL"
-$activestudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE classof>=EXTRACT(YEAR FROM sysdate) and enroll_status <= 0 AND entrydate >= sysdate AND schoolid in (6938047,0) AND student_web_id IS NOT NULL AND psguid IS NOT NULL"
+# 2020-06-19- FE - Change SQL to rely on enroll status in both clauses to catch students who unenroll, then reënroll back-to-back. 
+$exitedstudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE enroll_status > 0 AND exitdate BETWEEN sysdate - 90 AND sysdate AND exitcode IS NOT NULL AND schoolid in (1234567,0) AND student_web_id IS NOT NULL AND psguid IS NOT NULL"
+$activestudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE enroll_status <= 0 AND (entrydate >= sysdate OR transaction_date >= sysdate - 1) AND schoolid IN (1234567,0) AND student_web_id IS NOT NULL AND psguid IS NOT NULL AND transaction_date IS NOT NULL"
 
 # 2019-06-14 - JB - Add enabled check and pipe to disable command.
 # 2019-07-26 - JB - Set error action preference to ignore warning for student acccounts that have been completely deleted from AD.
@@ -39,7 +51,10 @@ if ($body) {
         SMTPServer = "mx.example.org"
     }
     Send-MailMessage @email -Body ($body | Out-String)
-} else {Clear-variable -Name 'body' ; return}
+} else {Clear-variable -Name 'body' ;}
 
+&"C:\Program Files (x86)\F5 VPN\f5fpc.exe" -stop /s $vpnsid
+
+exit 0;
 # 2019-06-21 - FE Actually delete inactive AD student accounts:
 # Get-ADUser -Filter * -SearchBase "OU=Students,OU=Classrooms,DC=example,DC=org" -Property Enabled | Where-Object {$_.Enabled -like “false”} | Remove-ADUser -WhatIf #| FT Name, Enabled -Autosize
