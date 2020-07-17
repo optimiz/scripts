@@ -25,8 +25,8 @@ $dbsource = 'Powerschool'
 Open-OracleConnection -ServiceName $dbname -DataSource $dbsource -Port $dbport -UserName $dbuser -Password $dbpswd -WarningAction SilentlyContinue
 
 # 2020-06-19- FE - Change SQL to rely on enroll status in both clauses to catch students who unenroll, then reënroll back-to-back. 
-$exitedstudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE enroll_status > 0 AND exitdate BETWEEN sysdate - 90 AND sysdate AND exitcode IS NOT NULL AND schoolid in (1234567,0) AND student_web_id IS NOT NULL AND psguid IS NOT NULL"
-$activestudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE enroll_status <= 0 AND (entrydate >= sysdate OR transaction_date >= sysdate - 1) AND schoolid IN (1234567,0) AND student_web_id IS NOT NULL AND psguid IS NOT NULL AND transaction_date IS NOT NULL"
+$exitedstudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE enroll_status > 0 AND (((exitcode IS NOT NULL AND exitdate BETWEEN (SELECT MIN(firstday) FROM terms WHERE lastday >= sysdate) AND sysdate) AND schoolid IN (SELECT DISTINCT schoolid FROM terms WHERE lastday >= sysdate)) OR ((exitcode IS NOT NULL AND exitdate IS NOT NULL) AND entrydate >= (SELECT MIN(firstday) FROM terms WHERE lastday >= sysdate))) AND student_web_id IS NOT NULL AND psguid IS NOT NULL"
+$activestudents=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE enroll_status <= 0 AND (entrydate >= sysdate OR transaction_date >= sysdate - 1) AND schoolid IN (SELECT DISTINCT schoolid FROM terms WHERE lastday >= sysdate)) AND student_web_id IS NOT NULL AND psguid IS NOT NULL AND transaction_date IS NOT NULL"
 
 # 2019-06-14 - JB - Add enabled check and pipe to disable command.
 # 2019-07-26 - JB - Set error action preference to ignore warning for student acccounts that have been completely deleted from AD.
