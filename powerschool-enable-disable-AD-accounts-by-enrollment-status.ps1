@@ -51,10 +51,19 @@ if ($body) {
         SMTPServer = "mx.example.org"
     }
     Send-MailMessage @email -Body ($body | Out-String)
-} else {Clear-variable -Name 'body' ;}
+} else {'No notice sent.'}
+
+Clear-variable -Name 'body' 
+Clear-variable -Name 'exitedstudents' 
+Clear-variable -Name 'activestudents' 
+
+# 2020-07-28 - FE - Select graduates for expiration.
+# $graduates=Invoke-SqlQuery -query "SELECT student_web_id FROM students WHERE enroll_status > 0 AND schoolid NOT IN (SELECT DISTINCT schoolid FROM terms WHERE lastday >= sysdate) AND exitdate >= TRUNC(sysdate,'YEAR') AND exitdate <= (SELECT MAX(lastday) FROM terms WHERE lastday <= sysdate) AND student_web_id IS NOT NULL AND psguid IS NOT NULL"
+# $expire= $graduates | ForEach-Object { Get-ADUser -Identity $($_.STUDENT_WEB_ID) | ? { $_.ENABLED -eq "True" } }
+# $expire |Disable-ADAccount
+# 2019-06-21 - FE - Actually delete inactive AD student accounts:
+# Get-ADUser -Filter * -SearchBase "OU=Students,OU=Classrooms,DC=example,DC=org" -Property Enabled | Where-Object {$_.Enabled -like “false”} | Remove-ADUser -WhatIf #| FT Name, Enabled -Autosize
 
 &"C:\Program Files (x86)\F5 VPN\f5fpc.exe" -stop /s $vpnsid
 
 exit 0;
-# 2019-06-21 - FE Actually delete inactive AD student accounts:
-# Get-ADUser -Filter * -SearchBase "OU=Students,OU=Classrooms,DC=example,DC=org" -Property Enabled | Where-Object {$_.Enabled -like “false”} | Remove-ADUser -WhatIf #| FT Name, Enabled -Autosize
