@@ -9,6 +9,7 @@ hdtv='1920x1080';
 # Tuesday, May 21 2019 - FE - Resize original pictures to HDTV size per screenly recommendations, read them here:
 # https://support.screenly.io/hc/en-us/articles/360009335693-What-content-types-are-supported-by-Screenly-OSE-
 # Monday, June 03 2019 - FE - Creator using different naming convention, updated to include change, and created 'outfile' variable for detox afterward.
+# Monday, June 07 2021 - FE - Institute image conversion advice from Google developer page: https://developers.google.com/speed/docs/insights/OptimizeImages
 
 if [ -d "$source" ]; then
 	mkdir -p "$staging";
@@ -19,7 +20,7 @@ if [ -d "$source" ]; then
 			do
 				if [ -e "${infile}" ] ; then
 					outfile="${infile[@]%.*}_resized_for_1080p_hdtv_screen.jpg";
-					convert "${infile}" -normalize -resize "$hdtv^" -gravity center -extent "$hdtv" +profile '*' -sampling-factor 4:2:0 -quality 89 "${outfile}";
+					convert "${infile}" -normalize -resize "$hdtv^" -gravity center -extent "$hdtv" +profile '*' -sampling-factor 4:2:0 -quality 85 -define jpeg:dct-method=float -interlace JPEG -colorspace sRGB "${outfile}";
 					jpegoptim "${outfile}";
 					touch -r "${infile}" "${outfile}";
 					exiftool -P '-filename<CreateDate' '-filename<filemodifydate' -d %Y-%m-%d-%Hh%Mm%S%%-c.%%le "${outfile}";
