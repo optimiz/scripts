@@ -37,7 +37,7 @@ dos2unix /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,nocoin}.hosts
 # Saturday, September 03 2016 - Normalize whitespace so sort can eliminate more duplicates.
 # sort -ifu /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,mdl}.hosts -o /etc/pdns-recursor/pdns.hosts
 # Friday, May 18 2018 - Add sed to change 0.0.0.0 to 127.0.0.1, on my systems, 127.0.0.1 is faster than 0.0.0.0
-grep -Ehv '(127.0.0.1$|==|::|^#|^$)' $pdnslocation/{intranet,manual,disconnect,yoyo,nocoin}.hosts |sed 's/0.0.0.0/127.0.0.1/g' |tr [:upper:] [:lower:] |tr -s [:blank:] |grep -vf "$pdnslocation/whitelist.hosts" |sort -ifu -o "$pdnslocation>
+grep -Ehv '(127.0.0.1$|==|::|^#|^$)' $pdnslocation/{intranet,manual,disconnect,yoyo,nocoin}.hosts |sed 's/0.0.0.0/127.0.0.1/g' |tr [:upper:] [:lower:] |tr -s [:blank:] |grep -vf "$pdnslocation/whitelist.hosts" |sort -ifu -o "$pdnslocation/pdns.hosts"
 
 # If "reload-zones" fails, restart instead.  The following error seems be a longstanding issue (2008?), increasing timeout resolves.
 # Error dealing with control socket request: Unable to send message over control channel '/var/run//lsock9CKhnj': No such file or directory
