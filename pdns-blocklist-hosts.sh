@@ -7,6 +7,8 @@
 agent='Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0'
 # Tuesday, October 01 2019 - Variablize PDNS Recursor location cause install folder on Ubuntu LTS differs from Fedora; only one change needed.
 pdnslocation=/etc/pdns-recursor
+blackholeaddr='0.0.0.0'
+localhostaddr='127.0.0.1'
 
 # Tuesday, October 01 2019 - Don't assume a current hosts file exists; only backup when exists and is not empty.
 if [ -s "$pdnslocation/pdns.hosts" ]; then xz -c "$pdnslocation/pdns.hosts" > /var/log/$(date +%Y%m%d)-pdns.hosts.xz; else echo 'nope'; fi
@@ -22,11 +24,13 @@ sort -ifu simple_{Advertising,Analytics,Cryptomining,Disconnect,FingerprintingGe
 
 # Need additional lists because Firefox Electrolysis (e10s) disables userContent.css see: https://bugzilla.mozilla.org/show_bug.cgi?id=1046166
 curl -sA "$agent" --compressed 'https://pgl.yoyo.org/adservers/serverlist.php?showintro=0;hostformat=hosts' -o 'yoyo'
-curl -sA "$agent" --compressed 'https://www.malwaredomainlist.com/hostslist/hosts.txt' -o 'malwaredomainlist'
 
 # Create hosts file from blocklist...
-if [ -s 'disconnectme' ]; then while read each; do echo 127.0.0.1 $each; done < 'disconnectme' > "$pdnslocation/disconnect.hosts"; fi
+if [ -s 'disconnectme' ]; then while read each; do echo $blackholeaddr $each; done < 'disconnectme' > "$pdnslocation/disconnect.hosts"; fi
 if [ -s 'yoyo' ]; then grep 127.0.0.1 'yoyo' > '/etc/pdns-recursor/yoyo.hosts'; fi
+
+# Monday, September 20 2021 - Add adult websites list.
+curl -sA "$agent" --compressed 'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts' -o "$pdnslocation/adware.hosts"
 
 popd || cd -
 
@@ -37,7 +41,7 @@ dos2unix /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,nocoin}.hosts
 # Saturday, September 03 2016 - Normalize whitespace so sort can eliminate more duplicates.
 # sort -ifu /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,mdl}.hosts -o /etc/pdns-recursor/pdns.hosts
 # Friday, May 18 2018 - Add sed to change 0.0.0.0 to 127.0.0.1, on my systems, 127.0.0.1 is faster than 0.0.0.0
-grep -Ehv '(127.0.0.1$|==|::|^#|^$)' $pdnslocation/{intranet,manual,disconnect,yoyo,nocoin}.hosts |sed 's/0.0.0.0/127.0.0.1/g' |tr [:upper:] [:lower:] |tr -s [:blank:] |grep -vf "$pdnslocation/whitelist.hosts" |sort -ifu -o "$pdnslocation/pdns.hosts"
+grep -Ehv "(127.0.0.1$|==|::|^#|^[[:space:]]|^$)" $pdnslocation/{disconnect,yoyo,nocoin,adware}.hosts |sed "s/${localhostaddr}/${blackholeaddr}/g" |cut -d ' ' -f 1,2 |grep -E '(^0.0.0.0)' |tr [:upper:] [:lower:] |tr -s [:blank:] |grep -vf "$pdnslocation/whitelist.hosts" |sort -ifu -o "$pdnslocation/pdns.hosts"
 
 # If "reload-zones" fails, restart instead.  The following error seems be a longstanding issue (2008?), increasing timeout resolves.
 # Error dealing with control socket request: Unable to send message over control channel '/var/run//lsock9CKhnj': No such file or directory
