@@ -35,7 +35,7 @@ curl -sA "$agent" --compressed 'https://raw.githubusercontent.com/StevenBlack/ho
 popd || cd -
 
 # Tuesday, June 16 2020 - Conform downloads to unix style line endings.
-dos2unix /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,nocoin}.hosts
+dos2unix /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,nocoin,adware,whitelist}.hosts
 
 # Tuesday, August 30 2016 - Add manual, intranet and adserver lists; combine into single input -- PDNS won't accept multiple "etc-hosts-file".
 # Saturday, September 03 2016 - Normalize whitespace so sort can eliminate more duplicates.
