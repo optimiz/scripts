@@ -27,7 +27,7 @@ curl -sA "$agent" --compressed 'https://pgl.yoyo.org/adservers/serverlist.php?sh
 
 # Create hosts file from blocklist...
 if [ -s 'disconnectme' ]; then while read each; do echo $blackholeaddr $each; done < 'disconnectme' > "$pdnslocation/disconnect.hosts"; fi
-if [ -s 'yoyo' ]; then grep 127.0.0.1 'yoyo' > '/etc/pdns-recursor/yoyo.hosts'; fi
+if [ -s 'yoyo' ]; then grep 127.0.0.1 'yoyo' > "$pdnslocation/yoyo.hosts"; fi
 
 # Monday, September 20 2021 - Add adult websites list.
 curl -sA "$agent" --compressed 'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts' -o "$pdnslocation/adware.hosts"
@@ -35,11 +35,10 @@ curl -sA "$agent" --compressed 'https://raw.githubusercontent.com/StevenBlack/ho
 popd || cd -
 
 # Tuesday, June 16 2020 - Conform downloads to unix style line endings.
-dos2unix /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,nocoin,adware,whitelist}.hosts
+dos2unix $pdnslocation/{disconnect,yoyo,nocoin,adware}.hosts
 
 # Tuesday, August 30 2016 - Add manual, intranet and adserver lists; combine into single input -- PDNS won't accept multiple "etc-hosts-file".
 # Saturday, September 03 2016 - Normalize whitespace so sort can eliminate more duplicates.
-# sort -ifu /etc/pdns-recursor/{intranet,manual,disconnect,yoyo,mdl}.hosts -o /etc/pdns-recursor/pdns.hosts
 # Friday, May 18 2018 - Add sed to change 0.0.0.0 to 127.0.0.1, on my systems, 127.0.0.1 is faster than 0.0.0.0
 grep -Ehv "(127.0.0.1$|==|::|^#|^[[:space:]]|^$)" $pdnslocation/{disconnect,yoyo,nocoin,adware}.hosts |sed "s/${localhostaddr}/${blackholeaddr}/g" |cut -d ' ' -f 1,2 |grep -E '(^0.0.0.0)' |tr [:upper:] [:lower:] |tr -s [:blank:] |grep -vf "$pdnslocation/whitelist.hosts" |sort -ifu -o "$pdnslocation/pdns.hosts"
 
