@@ -20,7 +20,9 @@ SELECT DISTINCT
     NULL AS username,
     NULL AS PASSWORD
 FROM teachers
-    JOIN sectionteacher ON teachers.ID = teacherid 
+
+/* Monday, January 22 2024 - FE - Need to include OR to clause after change to teachers.users_DCID above.*/
+    JOIN sectionteacher ON teachers.ID = teacherid or teachers.users_DCID = teacherid 
 WHERE 1=1
     AND status = 1
     AND staffstatus = 1 
@@ -30,10 +32,3 @@ WHERE 1=1
     --AND email_addr IS NOT NULL
 
 ORDER BY 1;
-
-
---select * from sectionteacher where teacherid in ('57153','57156');
---select * from sections;
---select * from RoleDef;
-
---AND sectionid IN ( SELECT DISTINCT ID FROM sections WHERE start_date >= (SELECT DISTINCT MIN(firstday) FROM terms WHERE lastday >= sysdate ) ) 
